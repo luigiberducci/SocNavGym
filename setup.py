@@ -23,7 +23,11 @@ REQUIRED = [
     "shapely",
     "Cython",
     "pyyaml",
-    "pandas"
+    "pandas",
+    # learning
+    "torch",
+    "stable-baselines3",
+    "shimmy>=0.2.1", # use gym env in sb3
 ]
 EXCLUDES=["environment_configs", "tests"]
 

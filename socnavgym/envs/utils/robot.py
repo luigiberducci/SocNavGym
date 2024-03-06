@@ -37,7 +37,15 @@ class Robot(Object):
 
         if self.type == "diff-drive":
             assert self.vel_y == 0.0,  "Cannot move in lateral direction for a differential drive robot"
-        
+
+        # updating the linear component
+        self.x += self.vel_x * np.cos(self.orientation) * time
+        self.y += self.vel_x * np.sin(self.orientation) * time
+
+        # updating the perpendicular component
+        self.x += self.vel_y * np.cos(np.pi / 2 + self.orientation) * time
+        self.y += self.vel_y * np.sin(np.pi / 2 + self.orientation) * time
+
         self.orientation += self.vel_a * time  # updating the robot orientation
         # restricting the robot's orientation value to be between [-np.pi, +np.pi]
         if self.orientation > 2*np.pi:
@@ -48,13 +56,7 @@ class Robot(Object):
         if self.orientation > np.pi: self.orientation -= 2*np.pi
         elif self.orientation < -np.pi: self.orientation += 2*np.pi
 
-        # updating the linear component
-        self.x += self.vel_x * np.cos(self.orientation) * time
-        self.y += self.vel_x * np.sin(self.orientation) * time
 
-        # updating the perpendicular component
-        self.x += self.vel_y * np.cos(np.pi/2 + self.orientation) * time
-        self.y += self.vel_y * np.sin(np.pi/2 + self.orientation) * time
         
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         black = (0,0,0) 

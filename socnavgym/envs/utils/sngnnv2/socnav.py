@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import copy
 from collections import namedtuple
 import math
 

@@ -25,7 +25,19 @@ This repository contains the implementation of our paper "SocNavGym: A Reinforce
 
 ## Installation
 1. Install Python-RVO2 by following the instructions given in [this](https://github.com/sybrenstuvel/Python-RVO2/) repository.
+   ```bash
+   # in Ubuntu 20.04
+   # if issue with cython, ensure to install python3-dev
+   cd ..
+   git clone git@github.com:sybrenstuvel/Python-RVO2.git
+   cd Python-RVO2
+   pip install .
+   ```
 2. Install DGL (Deep Graph Library) for your system using [this](https://www.dgl.ai/pages/start.html) link.
+   ```bash 
+   pip install  dgl -f https://data.dgl.ai/wheels/repo.html
+   pip install  dglgo -f https://data.dgl.ai/wheels-test/repo.html
+   ```
 3. For installing the environment using pip: 
     ```bash
     python3 -m pip install socnavgym
