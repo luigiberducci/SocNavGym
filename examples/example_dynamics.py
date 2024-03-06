@@ -69,11 +69,10 @@ def action_to_control(action: np.ndarray, maxvx: float, maxtheta: float) -> np.n
 def main():
     cfg = "../environment_configs/exp4_static.yaml"
     env = gym.make("SocNavGym-v1", config=cfg)
-    seed = 533 # np.random.randint(1e6)
+    seed = np.random.randint(1e6)
     max_steps = 100
 
     # obs: 6-d encoding, gx, gy, x, y, sintheta, costheta, velx, vely, vela, radius
-    idx, idy, idst, idct = 8, 9, 10, 11
     env = WorldFrameObservations(env)
     env = SeedWrapper(env=env, seed=seed)
 
@@ -97,8 +96,12 @@ def main():
         state = obs_to_state(obs, agent_id="robot")
         ctrl = action_to_control(action=action, maxvx=max_vx, maxtheta=max_vtheta)
         pred_state = dynamics(x=state, u=ctrl, dt=dt)   # from my dynamics
+
+        # orientation in +-np.pi
+        pred_state[2] = (pred_state[2] + np.pi) % (2 * np.pi) - np.pi
+
         new_state = obs_to_state(new_obs, agent_id="robot") # from sim
-        assert np.allclose(pred_state, new_state)
+        assert np.allclose(pred_state, new_state), f"got pred={pred_state}, new={new_state}"
 
         obs = new_obs
 

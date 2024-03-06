@@ -2979,7 +2979,7 @@ class SocNavEnv_v1(gym.Env):
                 "id": self.id,
                 "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
                 "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
-                "theta": random.uniform(-np.pi, np.pi),
+                "theta": 0.0, #random.uniform(-np.pi, np.pi),
                 "width": self.TABLE_WIDTH,
                 "length": self.TABLE_LENGTH
             }
