@@ -134,7 +134,10 @@ class WorldFrameObservations(gym.Wrapper):
                         relative_speeds = np.array([0, 0], dtype=np.float32)
                     elif self.robot.type == "holonomic":
                         relative_speeds = np.array([0, 0], dtype=np.float32)
-                    else: raise NotImplementedError
+                    elif self.robot.type == "integrator":
+                        relative_speeds = np.array([0, 0], dtype=np.float32)
+                    else:
+                        raise NotImplementedError
                     obs = np.concatenate((obs, relative_speeds))
                     # gaze for walls is 0
                     obs = np.concatenate((obs, np.array([0])))

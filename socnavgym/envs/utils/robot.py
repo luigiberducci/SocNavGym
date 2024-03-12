@@ -18,7 +18,7 @@ class Robot(Object):
         self.vel_y = 0.0  # velocity in the direction perpendicular to the robot's facing direction
         self.vel_a = 0.0  # angular velocity
 
-        assert(type == "diff-drive" or type == "holonomic")
+        assert type in ["diff-drive", "holonomic", "integrator"]
         self.set(id, x, y, theta, radius, goal_x, goal_y, type)
 
     def set(self, id, x, y, theta, radius, goal_x, goal_y, type):
@@ -33,28 +33,34 @@ class Robot(Object):
 
         Args:
             time (float): Time passed.
-        """        
+        """
 
-        if self.type == "diff-drive":
-            assert self.vel_y == 0.0,  "Cannot move in lateral direction for a differential drive robot"
+        if self.type in ["holonomic", "diff-drive"]:
 
-        # updating the linear component
-        self.x += self.vel_x * np.cos(self.orientation) * time
-        self.y += self.vel_x * np.sin(self.orientation) * time
+            if self.type == "diff-drive":
+                assert self.vel_y == 0.0,  "Cannot move in lateral direction for a differential drive robot"
 
-        # updating the perpendicular component
-        self.x += self.vel_y * np.cos(np.pi / 2 + self.orientation) * time
-        self.y += self.vel_y * np.sin(np.pi / 2 + self.orientation) * time
+            # updating the linear component
+            self.x += self.vel_x * np.cos(self.orientation) * time
+            self.y += self.vel_x * np.sin(self.orientation) * time
 
-        self.orientation += self.vel_a * time  # updating the robot orientation
-        # restricting the robot's orientation value to be between [-np.pi, +np.pi]
-        if self.orientation > 2*np.pi:
-            self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
-        if self.orientation < -2*np.pi:
-            self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+            # updating the perpendicular component
+            self.x += self.vel_y * np.cos(np.pi / 2 + self.orientation) * time
+            self.y += self.vel_y * np.sin(np.pi / 2 + self.orientation) * time
 
-        if self.orientation > np.pi: self.orientation -= 2*np.pi
-        elif self.orientation < -np.pi: self.orientation += 2*np.pi
+            self.orientation += self.vel_a * time  # updating the robot orientation
+            # restricting the robot's orientation value to be between [-np.pi, +np.pi]
+            if self.orientation > 2*np.pi:
+                self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
+            if self.orientation < -2*np.pi:
+                self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+
+            if self.orientation > np.pi: self.orientation -= 2*np.pi
+            elif self.orientation < -np.pi: self.orientation += 2*np.pi
+        elif self.type == "integrator":
+            self.x += self.vel_x * time
+            self.y += self.vel_y * time
+            self.orientation = 0.0
 
 
         

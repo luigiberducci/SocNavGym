@@ -315,7 +315,7 @@ class SocNavEnv_v1(gym.Env):
         ), "robot parameters in config file should be greater than 0"
         self.GOAL_THRESHOLD = self.ROBOT_RADIUS + self.GOAL_RADIUS
         self.ROBOT_TYPE = config["robot"]["robot_type"]
-        assert self.ROBOT_TYPE == "diff-drive" or self.ROBOT_TYPE == "holonomic"
+        assert self.ROBOT_TYPE in ["diff-drive", "holonomic", "integrator"]
 
         # human
         self.HUMAN_DIAMETER = config["human"]["human_diameter"]
@@ -1146,11 +1146,15 @@ class SocNavEnv_v1(gym.Env):
             low = np.array([-1, -1, -1], dtype=np.float32)
             high = np.array([+1, +1, +1], dtype=np.float32)
 
-        elif (
-            self.robot.type == "diff-drive"
-        ):  # lateral speed is 0 for differential drive robots
+
+        elif self.robot.type == "diff-drive":
+            # lateral speed is 0 for differential drive robots
             low = np.array([-1, 0, -1], dtype=np.float32)
             high = np.array([+1, 0, +1], dtype=np.float32)
+        elif self.robot.type == "integrator":
+            # rotational speed is 0 for integrator, only vx, vy are controlled
+            low = np.array([-1, -1, 0], dtype=np.float32)
+            high = np.array([+1, +1, 0], dtype=np.float32)
 
         else:
             raise NotImplementedError
@@ -2656,6 +2660,12 @@ class SocNavEnv_v1(gym.Env):
                     np.arctan2(vel[1], vel[0]) - self.robot_orca.orientation
                 ) / self.TIMESTEP
                 vel_x = np.sqrt(vel[0] ** 2 + vel[1] ** 2)
+            elif self.robot_orca.type == "integrator":
+                vel_x = vel[0]
+                vel_y = vel[1]
+                vel_a = 0.0
+            else:
+                raise NotImplementedError(f"type {self.robot_orca.type} not supported")
 
             self.robot_orca.vel_x = np.clip(
                 vel_x, -self.MAX_ADVANCE_ROBOT, self.MAX_ADVANCE_ROBOT

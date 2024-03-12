@@ -161,26 +161,51 @@ def gxho_smt(x: list) -> TensorType:
         ]
     )
 
+def gxint_torch(x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    assert (
+        len(x.shape) == 3
+    ), "expected batched input with shape (batch_size, state_dim, 1)"
+    if isinstance(x, np.ndarray):
+        gx = np.eye(x.shape[1])[None].repeat(x.shape[0], axis=0)
+    else:
+        gx = torch.eye(x.shape[1])[None].repeat((x.shape[0], 1, 1))
+        gx = gx.to(x.device)
+    return gx
 
-def dynamics(x: np.ndarray, u: np.ndarray, dt: float, holonomic: bool) -> np.ndarray:
-    assert isinstance(x, np.ndarray) and x.shape == (3,), f"wrong x type: got {x}"
+def gxint_smt(x: list) -> np.ndarray | torch.Tensor:
+    assert isinstance(
+        x, list
+    ), "expected list of symbolic state variables, [x0, x1, ...]"
+    return np.eye(len(x))
+
+
+def dynamics(x: np.ndarray, u: np.ndarray, dt: float, type: str) -> np.ndarray:
     assert isinstance(dt, float | int) and dt > 0, f"wrong dt, got {dt}"
-    x = x[None].reshape(1, -1, 1)
 
-    if holonomic:
+    if type == "holonomic":
+        assert isinstance(x, np.ndarray) and x.shape == (3,), f"wrong x type: got {x}"
         assert isinstance(u, np.ndarray) and u.shape == (3,), f"wrong u type: got {u}"
+        x = x[None].reshape(1, -1, 1)
         u = u[None].reshape(1, -1, 1)
         dxdt = fx_torch(x) + gxho_torch(x) @ u
-    else:
+    elif type == "diff-drive":
+        assert isinstance(x, np.ndarray) and x.shape == (3,), f"wrong x type: got {x}"
         assert isinstance(u, np.ndarray) and u.shape == (2,), f"wrong u type: got {u}"
+        x = x[None].reshape(1, -1, 1)
         u = u[None].reshape(1, -1, 1)
         dxdt = fx_torch(x) + gxdd_torch(x) @ u
+    elif type == "integrator":
+        assert isinstance(x, np.ndarray) and x.shape == (2,), f"wrong x type: got {x}"
+        assert isinstance(u, np.ndarray) and u.shape == (2,), f"wrong u type: got {u}"
+        x = x[None].reshape(1, -1, 1)
+        u = u[None].reshape(1, -1, 1)
+        dxdt = fx_torch(x) + gxint_torch(x) @ u
 
     next_x = x + dt * dxdt
     return next_x.squeeze()
 
 
-def obs_to_state(obs: dict[str, np.array], agent_id: str = "robot") -> np.ndarray:
+def obs_to_state(obs: dict[str, np.array], robot_type: str, agent_id: str = "robot") -> np.ndarray:
     """
     Convert the multi-agent observation to a state vector for the given agent.
     """
@@ -215,25 +240,31 @@ def obs_to_state(obs: dict[str, np.array], agent_id: str = "robot") -> np.ndarra
     y = agent_obd[y_id]
     theta = np.arctan2(agent_obd[sint_id], agent_obd[cost_id])
 
-    state = np.array([x, y, theta], dtype=np.float32)
-    assert isinstance(state, np.ndarray) and state.shape == (
-        3,
-    ), f"wrong state, expected 3d, got {state}"
+    if robot_type in ["holonomic", "diff-drive"]:
+        state = np.array([x, y, theta], dtype=np.float32)
+        assert isinstance(state, np.ndarray) and state.shape == (
+            3,
+        ), f"wrong state, expected 3d, got {state}"
+    else:
+        state = np.array([x, y], dtype=np.float32)
+
     return state
 
 
 def action_to_control(
-    action: np.ndarray, maxvx: float, maxvy: float, maxtheta: float, holonomic: bool
+    action: np.ndarray, maxvx: float, maxvy: float, maxtheta: float, type: str
 ) -> np.ndarray:
     assert isinstance(action, np.ndarray) and action.shape == (3,)
     assert all([-1.0 < a <= 1 for a in action])
-    if holonomic:
+    if type=="holonomic":
         u = np.array(
             [action[0] * maxvx, action[1] * maxvy, action[2] * maxtheta],
             dtype=np.float32,
         )
-    else:
+    elif type=="diff-drive":
         u = np.array([action[0] * maxvx, action[2] * maxtheta], dtype=np.float32)
+    elif type == "integrator":
+        u = np.array([action[0] * maxvx, action[1] * maxvy], dtype=np.float32)
     return u
 
 
@@ -248,7 +279,7 @@ def main():
     env = SeedWrapper(env=env, seed=seed)
 
     # extract dynamics params
-    is_holonomic = env.robot.type == "holonomic"
+    robot_type = env.robot.type
     dt = env.TIMESTEP
     max_vx = env.MAX_ADVANCE_ROBOT
     max_vy = env.MAX_ADVANCE_ROBOT
@@ -266,22 +297,24 @@ def main():
         env.render()
 
         # my prediction
-        state = obs_to_state(obs, agent_id="robot")
+        state = obs_to_state(obs, robot_type=robot_type,  agent_id="robot")
         ctrl = action_to_control(
             action=action,
             maxvx=max_vx,
             maxvy=max_vy,
             maxtheta=max_vtheta,
-            holonomic=is_holonomic,
+            type=robot_type,
         )
         pred_state = dynamics(
-            x=state, u=ctrl, dt=dt, holonomic=is_holonomic
+            x=state, u=ctrl, dt=dt, type=robot_type
         )  # from my dynamics
 
         # orientation in +-np.pi
-        pred_state[2] = (pred_state[2] + np.pi) % (2 * np.pi) - np.pi
+        if pred_state.ndim == 3:
+            # x, y, theta
+            pred_state[2] = (pred_state[2] + np.pi) % (2 * np.pi) - np.pi
 
-        new_state = obs_to_state(new_obs, agent_id="robot")  # from sim
+        new_state = obs_to_state(new_obs, robot_type=robot_type, agent_id="robot")  # from sim
         assert np.allclose(
             pred_state, new_state
         ), f"got pred={pred_state}, new={new_state}"

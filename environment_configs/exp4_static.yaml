@@ -9,7 +9,7 @@ episode:
 robot:
     robot_radius: 0.25  # radius of the robot
     goal_radius: 0.35  # radius of the goal
-    robot_type: "holonomic"  # there are two types, diff-drive or holonomic
+    robot_type: "integrator"  # there are two types, diff-drive or holonomic
 
 human:
     human_diameter: 0.72  # diameter of the human
@@ -42,7 +42,7 @@ human-laptop-interaction:
     human_laptop_distance: 0.3  # distance between human and laptop
 
 env:
-    margin: 0.5  # margin for the env
+    margin: 1.0  # margin for the env
     max_advance_human: 0.1  # maximum speed for humans
     max_advance_robot: 0.1  # maximum linear speed for robot 
     max_rotation: 0.387596899  # maximum rotational speed for robot

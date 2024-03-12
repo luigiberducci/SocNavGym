@@ -14,10 +14,15 @@ Convert observation in world frame to domains.
 """
 
 def get_state_domain(env: SocNavEnv_v1) -> domains.Set:
-    return domains.Rectangle(
-        vars=["x", "y", "theta"], lb=(-env.MAP_X, -env.MAP_Y, -np.pi), ub=(env.MAP_X, env.MAP_Y, np.pi)
-    )
-
+    if env.robot.type in ["holonomic", "diff-drive"]:
+        dom = domains.Rectangle(
+            vars=["x", "y", "theta"], lb=(-env.MAP_X, -env.MAP_Y, -np.pi), ub=(env.MAP_X, env.MAP_Y, np.pi)
+        )
+    else:
+        dom = domains.Rectangle(
+            vars=["x", "y"], lb=(-env.MAP_X, -env.MAP_Y), ub=(env.MAP_X, env.MAP_Y)
+        )
+    return dom
 def get_input_domain(env: SocNavEnv_v1) -> domains.Set:
     max_vx = env.MAX_ADVANCE_ROBOT
     max_vy = env.MAX_ADVANCE_ROBOT
@@ -27,9 +32,13 @@ def get_input_domain(env: SocNavEnv_v1) -> domains.Set:
         domain = domains.Rectangle(
             vars=["vx", "vy", "vtheta"], lb=(-max_vx, -max_vy, -max_vtheta), ub=(max_vx, max_vy, max_vtheta)
         )
-    else:
+    elif env.robot.type == "diff-drive":
         domain = domains.Rectangle(
             vars=["vx", "vtheta"], lb=(-max_vx, -max_vtheta), ub=(max_vx, max_vtheta)
+        )
+    elif env.robot.type == "integrator":
+        domain = domains.Rectangle(
+            vars=["vx", "vy"], lb=(-max_vx, -max_vy), ub=(max_vx, max_vy)
         )
     return domain
 
@@ -45,16 +54,29 @@ def get_init_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.
     robot_r = robot_obs[15]
 
     if use_only_boxes:
-        lowerbound = np.array([robot_x, robot_y, 0.0]) - np.array([robot_r, robot_r, np.pi])
-        upperbound = np.array([robot_x, robot_y, 0.0]) + np.array([robot_r, robot_r, np.pi])
-        actor_domain = domains.Rectangle(
-            vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
-        )
+        if env.robot.type in ["holonomic", "diff-drive"]:
+            lowerbound = np.array([robot_x, robot_y, 0.0]) - np.array([robot_r, robot_r, np.pi])
+            upperbound = np.array([robot_x, robot_y, 0.0]) + np.array([robot_r, robot_r, np.pi])
+            actor_domain = domains.Rectangle(
+                vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
+            )
+        else:
+            lowerbound = np.array([robot_x, robot_y]) - np.array([robot_r, robot_r])
+            upperbound = np.array([robot_x, robot_y]) + np.array([robot_r, robot_r])
+            actor_domain = domains.Rectangle(
+                vars=["x", "y"], lb=lowerbound, ub=upperbound
+            )
     else:
         warnings.warn("using a sphere restricts theta by the robot radius, which is not correct")
-        actor_domain = domains.Sphere(
-            vars=["x", "y", "theta"], center=(robot_x, robot_y, 0.0), radius=robot_r
-        )
+        if env.robot.type in ["holonomic", "diff-drive"]:
+            actor_domain = domains.Sphere(
+                vars=["x", "y", "theta"], center=(robot_x, robot_y, 0.0), radius=robot_r
+            )
+        else:
+            actor_domain = domains.Sphere(
+                vars=["x", "y"], center=(robot_x, robot_y), radius=robot_r
+            )
+
 
     return actor_domain
 
@@ -81,30 +103,48 @@ def get_unsafe_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domain
             if actor_group == "tables":
                 table_w = env.TABLE_WIDTH
                 table_l = env.TABLE_LENGTH
-                lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([table_l / 2, table_w/2, np.pi])
+                lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([table_l / 2, table_w / 2, np.pi])
                 upperbound = np.array([actor_x, actor_y, 0.0]) + np.array([table_l / 2, table_w / 2, np.pi])
-                actor_domain = domains.Rectangle(
-                    vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
-                )
-            else:
-                if use_only_boxes:
-                    lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([actor_r, actor_r, np.pi])
-                    upperbound = np.array([actor_x, actor_y, 0.0]) + np.array([actor_r, actor_r, np.pi])
+                if env.robot.type in ["holonomic", "diff-drive"]:
                     actor_domain = domains.Rectangle(
                         vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
                     )
                 else:
-                    warnings.warn("using a sphere restricts theta by the robot radius, which is not correct")
-                    actor_domain = domains.Sphere(
-                        vars=["x", "y", "theta"], center=(actor_x, actor_y, 0.0), radius=actor_r
+                    actor_domain = domains.Rectangle(
+                        vars=["x", "y"], lb=lowerbound[:2], ub=upperbound[:2]
                     )
+            else:
+                if use_only_boxes:
+                    if env.robot.type in ["holonomic", "diff-drive"]:
+                        lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([actor_r, actor_r, np.pi])
+                        upperbound = np.array([actor_x, actor_y, 0.0]) + np.array([actor_r, actor_r, np.pi])
+                        actor_domain = domains.Rectangle(
+                            vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
+                        )
+                    else:
+                        lowerbound = np.array([actor_x, actor_y]) - np.array([actor_r, actor_r])
+                        upperbound = np.array([actor_x, actor_y]) + np.array([actor_r, actor_r])
+                        actor_domain = domains.Rectangle(
+                            vars=["x", "y"], lb=lowerbound, ub=upperbound
+                        )
+                else:
+                    warnings.warn("using a sphere restricts theta by the robot radius, which is not correct")
+                    if env.robot.type in ["holonomic", "diff-drive"]:
+                        actor_domain = domains.Sphere(
+                            vars=["x", "y", "theta"], center=(actor_x, actor_y, 0.0), radius=actor_r
+                        )
+                    else:
+                        actor_domain = domains.Sphere(
+                            vars=["x", "y"], center=(actor_x, actor_y), radius=actor_r
+                        )
+
             group_domains.append(actor_domain)
 
         unsafe_domains[actor_group] = domains.Union(sets=group_domains)
 
     return domains.Union(sets=list(unsafe_domains.values()))
 def main():
-    cfg = "../environment_configs/exp4_no_sngnn.yaml"  # static.yaml"
+    cfg = "../environment_configs/exp4_static.yaml"  # static.yaml"
     env = gym.make("SocNavGym-v1", config=cfg)
     seed = np.random.randint(1e6)
     max_steps = 100
@@ -152,8 +192,6 @@ def main():
         new_obs, reward, term, trunc, info = env.step(action)
         done = term or trunc
         env.render()
-        input()
-
         obs = new_obs
 
     env.close()
