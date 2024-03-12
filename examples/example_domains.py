@@ -1,88 +1,149 @@
+import warnings
+
 import gym
 import numpy as np
 from fosco.common import domains
 
-import socnavgym
-import fosco
+
 from examples.example_seeding import SeedWrapper
+from socnavgym.envs import SocNavEnv_v1
 from socnavgym.wrappers import WorldFrameObservations
 
 """
 Convert observation in world frame to domains.
 """
 
+def get_state_domain(env: SocNavEnv_v1) -> domains.Set:
+    return domains.Rectangle(
+        vars=["x", "y", "theta"], lb=(-env.MAP_X, -env.MAP_Y, -np.pi), ub=(env.MAP_X, env.MAP_Y, np.pi)
+    )
 
+def get_input_domain(env: SocNavEnv_v1) -> domains.Set:
+    max_vx = env.MAX_ADVANCE_ROBOT
+    max_vy = env.MAX_ADVANCE_ROBOT
+    max_vtheta = env.MAX_ROTATION
+
+    if env.robot.type == "holonomic":
+        domain = domains.Rectangle(
+            vars=["vx", "vy", "vtheta"], lb=(-max_vx, -max_vy, -max_vtheta), ub=(max_vx, max_vy, max_vtheta)
+        )
+    else:
+        domain = domains.Rectangle(
+            vars=["vx", "vtheta"], lb=(-max_vx, -max_vtheta), ub=(max_vx, max_vtheta)
+        )
+    return domain
+
+def get_init_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.Set:
+    if not isinstance(env, SeedWrapper):
+        raise TypeError("init domain relies on having a seeded environment")
+
+    obs, info = env.reset()
+
+    robot_obs = obs["robot"]
+    robot_x = robot_obs[8]
+    robot_y = robot_obs[9]
+    robot_r = robot_obs[15]
+
+    if use_only_boxes:
+        lowerbound = np.array([robot_x, robot_y, 0.0]) - np.array([robot_r, robot_r, np.pi])
+        upperbound = np.array([robot_x, robot_y, 0.0]) + np.array([robot_r, robot_r, np.pi])
+        actor_domain = domains.Rectangle(
+            vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
+        )
+    else:
+        warnings.warn("using a sphere restricts theta by the robot radius, which is not correct")
+        actor_domain = domains.Sphere(
+            vars=["x", "y", "theta"], center=(robot_x, robot_y, 0.0), radius=robot_r
+        )
+
+    return actor_domain
+
+def get_unsafe_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.Set:
+    if not isinstance(env, SeedWrapper):
+        raise TypeError("unsafe domain relies on having a seeded environment")
+
+    obs, info = env.reset()
+
+    unsafe_domains = {}
+    for actor_group in obs:
+        if actor_group in ["robot", "walls"]:
+            continue
+
+        n_feats = 14
+        n_actors = len(obs[actor_group]) // n_feats  # 13 features per actor
+        group_domains = []
+        for i in range(n_actors):
+            actor_obs = obs[actor_group][i * n_feats : (i + 1) * n_feats]
+            actor_x = actor_obs[6]
+            actor_y = actor_obs[7]
+            actor_r = actor_obs[10]
+
+            if actor_group == "tables":
+                table_w = env.TABLE_WIDTH
+                table_l = env.TABLE_LENGTH
+                lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([table_l / 2, table_w/2, np.pi])
+                upperbound = np.array([actor_x, actor_y, 0.0]) + np.array([table_l / 2, table_w / 2, np.pi])
+                actor_domain = domains.Rectangle(
+                    vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
+                )
+            else:
+                if use_only_boxes:
+                    lowerbound = np.array([actor_x, actor_y, 0.0]) - np.array([actor_r, actor_r, np.pi])
+                    upperbound = np.array([actor_x, actor_y, 0.0]) + np.array([actor_r, actor_r, np.pi])
+                    actor_domain = domains.Rectangle(
+                        vars=["x", "y", "theta"], lb=lowerbound, ub=upperbound
+                    )
+                else:
+                    warnings.warn("using a sphere restricts theta by the robot radius, which is not correct")
+                    actor_domain = domains.Sphere(
+                        vars=["x", "y", "theta"], center=(actor_x, actor_y, 0.0), radius=actor_r
+                    )
+            group_domains.append(actor_domain)
+
+        unsafe_domains[actor_group] = domains.Union(sets=group_domains)
+
+    return domains.Union(sets=list(unsafe_domains.values()))
 def main():
-    cfg = "../environment_configs/exp4_no_sngnn.yaml"#static.yaml"
+    cfg = "../environment_configs/exp4_no_sngnn.yaml"  # static.yaml"
     env = gym.make("SocNavGym-v1", config=cfg)
     seed = np.random.randint(1e6)
     max_steps = 100
+    use_only_boxes = True   # toggle using only boxes in domain abstraction
 
     # obs: 6-d encoding, gx, gy, x, y, sintheta, costheta, velx, vely, vela, radius
     env = WorldFrameObservations(env)
     env = SeedWrapper(env=env, seed=seed)
     print("seed:", seed)
 
-    # extract dynamics params
-    dt = env.TIMESTEP
-    max_vx = env.MAX_ADVANCE_ROBOT
-    max_vtheta = env.MAX_ROTATION
-
     obs, info = env.reset()
     done = False
     env.render()
 
-    # create domains
-    state_domain = None
-    init_domain = None
-    unsafe_domains = {}
 
-    # state domain
-    state_domain = domains.Rectangle(vars=["x", "y"], lb=(-env.MAP_X, -env.MAP_Y), ub=(env.MAP_X, env.MAP_Y))
+    # domains
+    state_domain = get_state_domain(env=env)
+    input_domain = get_input_domain(env=env)
+    init_domain = get_init_domain(env=env, use_only_boxes=use_only_boxes)
+    unsafe_domain = get_unsafe_domain(env=env, use_only_boxes=use_only_boxes)
 
-    # init domain
-    robot_obs = obs["robot"]
-    robot_x = robot_obs[8]
-    robot_y = robot_obs[9]
-    robot_r = robot_obs[15]
-    init_domain = domains.Sphere(vars=["x", "y"], centre=(robot_x, robot_y), radius=robot_r)
+    # print domains
+    for k, dom in zip(["state", "input", "init", "unsafe"],
+                      [state_domain, input_domain, init_domain, unsafe_domain]):
+        print(f"{k} domain", dom)
 
-    for actor_group in obs:
-        if actor_group in ["robot", "walls"]:
-            continue
-
-        print(actor_group)
-        n_feats = 14
-        n_actors = len(obs[actor_group]) // n_feats  # 13 features per actor
-        group_domains = []
-        for i in range(n_actors):
-            actor_obs = obs[actor_group][i * n_feats:(i + 1) * n_feats]
-            actor_x = actor_obs[6]
-            actor_y = actor_obs[7]
-            actor_r = actor_obs[10]
-            actor_domain = domains.Sphere(vars=["x", "y"], centre=(actor_x, actor_y), radius=actor_r)
-            group_domains.append(actor_domain)
-
-        unsafe_domains[actor_group] = domains.Union(sets=group_domains)
 
     # visualize domains
     import matplotlib.pyplot as plt
 
-    # plot initial domain
-    all_points = state_domain.generate_data(batch_size=1000)
-    #plt.scatter(all_points[:, 0], all_points[:, 1], label="state domain")
-
     init_points = init_domain.generate_data(batch_size=1000)
     plt.scatter(init_points[:, 0], init_points[:, 1], label="init domain - robot")
 
-    for actor_group in list(unsafe_domains.keys())[::-1]:
-        unsafe_dom = unsafe_domains[actor_group]
+    for unsafe_dom in unsafe_domain.sets[::-1]:
         unsafe_points = unsafe_dom.generate_data(batch_size=1000)
-        plt.scatter(unsafe_points[:, 0], unsafe_points[:, 1], label=actor_group)
+        plt.scatter(unsafe_points[:, 0], unsafe_points[:, 1])
     plt.axis("equal")
     plt.legend()
     plt.show()
-
 
     # run the simulation
     step = 0
@@ -93,11 +154,10 @@ def main():
         env.render()
         input()
 
-
-
         obs = new_obs
 
     env.close()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

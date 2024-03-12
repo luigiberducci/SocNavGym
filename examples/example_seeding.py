@@ -1,17 +1,15 @@
 from typing import Tuple
 
 import gym
-import numpy as np
 from gym.core import ObsType
-
 import socnavgym
-
 
 
 class SeedWrapper(gym.Wrapper):
     def __init__(self, env: gym.Env, seed: int):
         super().__init__(env=env)
         self._seed = seed
+
     def reset(self, **kwargs) -> Tuple[ObsType, dict]:
         return super().reset(seed=self._seed)
 
@@ -30,9 +28,10 @@ def main():
         done = term or trunc
         env.render()
 
-        input()
+        #input()
 
     env.close()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
