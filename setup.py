@@ -28,6 +28,13 @@ REQUIRED = [
     "torch",
     "stable-baselines3",
     "shimmy>=0.2.1", # use gym env in sb3
+    # for fosco
+    "aim",
+    "pygame",
+    # for clean-rl
+    "cvxpylayers",
+    "tensorboard",
+    "tyro",
 ]
 EXCLUDES=["environment_configs", "tests"]
 
