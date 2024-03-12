@@ -4,7 +4,7 @@ import socnavgym
 
 def main():
     cfg = "../environment_configs/exp4_no_sngnn.yaml"
-    env = gym.make("SocNavGym-v1", config=cfg)
+    env = gym.make("SocNavGym-v1", config=cfg, render_mode="human")
 
     for _ in range(10):
         obs, info = env.reset()
