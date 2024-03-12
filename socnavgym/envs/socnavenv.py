@@ -5229,12 +5229,12 @@ class SocNavEnv(gym.Env):
 
         return obs, {}
 
-    def render(self, mode="human", draw_human_gaze=False):
+    def render(self, draw_human_gaze=False):
         """
         Visualizing the environment
         """
 
-        if not self.window_initialised:
+        if self.render_mode == "human" and not self.window_initialised:
             cv2.namedWindow("world", cv2.WINDOW_NORMAL)
             cv2.resizeWindow(
                 "world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW)
@@ -5369,14 +5369,14 @@ class SocNavEnv(gym.Env):
                 self.MAP_Y,
             )
 
-        ## uncomment to save the images
-        # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
-        # self.count+=1
+        if self.render_mode == "human":
+            cv2.imshow("world", self.world_image)
+            k = cv2.waitKey(self.MILLISECONDS)
+            if k % 255 == 27:
+                sys.exit(0)
+        elif self.render_mode == "rgb_array":
+            return self.world_image
 
-        cv2.imshow("world", self.world_image)
-        k = cv2.waitKey(self.MILLISECONDS)
-        if k % 255 == 27:
-            sys.exit(0)
 
     def record(self, path: str):
         """To record the episode
