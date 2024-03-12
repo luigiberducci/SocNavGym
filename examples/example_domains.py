@@ -13,7 +13,7 @@ Convert observation in world frame to domains.
 
 
 def main():
-    cfg = "../environment_configs/exp4_static.yaml"
+    cfg = "../environment_configs/exp4_no_sngnn.yaml"#static.yaml"
     env = gym.make("SocNavGym-v1", config=cfg)
     seed = np.random.randint(1e6)
     max_steps = 100
@@ -21,6 +21,7 @@ def main():
     # obs: 6-d encoding, gx, gy, x, y, sintheta, costheta, velx, vely, vela, radius
     env = WorldFrameObservations(env)
     env = SeedWrapper(env=env, seed=seed)
+    print("seed:", seed)
 
     # extract dynamics params
     dt = env.TIMESTEP
