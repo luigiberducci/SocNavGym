@@ -102,7 +102,7 @@ class SocNavEnv(gym.Env):
     Class for the environment
     """
 
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     # rendering params
     RESOLUTION_VIEW = None
@@ -3451,7 +3451,7 @@ class SocNavEnv(gym.Env):
 
         collision_object = False
         collision_wall = False
-        for object in self.plants + self.walls + self.tables + self.laptops:
+        for object in self.plants + self.tables + self.laptops: #self.walls
             if self.robot.collides(object):
                 collision_object = True
                 break
@@ -3604,7 +3604,7 @@ class SocNavEnv(gym.Env):
             or self.MAP_Y / 2 < self.robot.y
             or self.robot.y < -self.MAP_Y / 2
         ):
-            self._is_terminated = True
+            #self._is_terminated = True
             info["OUT_OF_MAP"] = True
 
         elif distance_to_goal < self.GOAL_THRESHOLD:
