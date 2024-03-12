@@ -1,7 +1,8 @@
 from typing import Tuple
 
-import gym
-from gym.core import ObsType
+import gymnasium as gym
+from gymnasium.core import ObsType
+
 import socnavgym
 
 

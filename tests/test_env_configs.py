@@ -1,7 +1,7 @@
 import pathlib
 import unittest
 
-import gym
+import gymnasium as gym
 import socnavgym
 
 
@@ -13,6 +13,7 @@ class TestEnvConfigs(unittest.TestCase):
         cfg_dir = pathlib.Path(__file__).parent.parent / "environment_configs"
 
         for cfg_file in cfg_dir.glob("*yaml"):
+            print(cfg_file)
             cfg_filepath = cfg_dir / cfg_file
             env = gym.make("SocNavGym-v1", config=str(cfg_filepath))
             obs, _ = env.reset()
@@ -21,3 +22,5 @@ class TestEnvConfigs(unittest.TestCase):
                 env.observation_space.contains(obs),
                 "the observation from reset is not valid",
             )
+
+            env.close()

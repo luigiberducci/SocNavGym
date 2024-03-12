@@ -1,12 +1,12 @@
-import gym
-from gym import spaces
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
+import gymnasium as gym
+from gymnasium import spaces
+from socnavgym.envs.socnavenv import SocNavEnv
 from socnavgym.envs.utils.wall import Wall
 import numpy as np
 import copy
 
 class NoisyObservations(gym.Wrapper):
-    def __init__(self, env: SocNavEnv_v1, mean, std_dev, apply_noise_to=["robot", "humans", "tables", "laptops", "plants", "walls"]) -> None:
+    def __init__(self, env: SocNavEnv, mean, std_dev, apply_noise_to=["robot", "humans", "tables", "laptops", "plants", "walls"]) -> None:
         """
         A Gaussian Noise of mean, and std_dev are added to the values of the observations that are received.
 

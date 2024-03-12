@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import socnavgym
 
 
@@ -16,7 +16,7 @@ def main():
             done = term or trunc
             env.render()
 
-        input()
+        #input()
 
     env.close()
 

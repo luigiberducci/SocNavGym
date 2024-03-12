@@ -1,19 +1,17 @@
-import gym
-from gym import spaces
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
-from socnavgym.envs.utils.wall import Wall
+import gymnasium as gym
+from gymnasium import spaces
+from socnavgym.envs.socnavenv import SocNavEnv
 from socnavgym.envs.utils.utils import w2px, w2py
 import sys
-from typing import Dict
 import numpy as np
 import copy
 import cv2
 
 class PartialObservations(gym.Wrapper):
-    def __init__(self, env: SocNavEnv_v1, fov_angle:float, range:float) -> None:
+    def __init__(self, env: SocNavEnv, fov_angle:float, range:float) -> None:
         """
         Args:
-            env (SocNavEnv_v1): environment to be wrapped
+            env (SocNavEnv): environment to be wrapped
             fov_angle (float): fov_angle is assumed to be in radians. The range of vision will be assumed from [-fov_angle/2, +fov_angle/2]. The robot heading is assumed to be where the X-axis lies.
             range (_type_): range is the sensor's maximum range (in meters)
         """

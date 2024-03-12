@@ -1,12 +1,12 @@
-import gym
-from gym import spaces
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
+import gymnasium as gym
+from gymnasium import spaces
+from socnavgym.envs.socnavenv import SocNavEnv
 from socnavgym.envs.utils.wall import Wall
 import numpy as np
 import copy
 
 class WorldFrameObservations(gym.Wrapper):
-    def __init__(self, env:SocNavEnv_v1) -> None:
+    def __init__(self, env:SocNavEnv) -> None:
         super().__init__(env)
         self.env = env
         

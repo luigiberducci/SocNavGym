@@ -1,19 +1,19 @@
 import warnings
 
-import gym
+import gymnasium as gym
 import numpy as np
 from fosco.common import domains
 
 
 from examples.example_seeding import SeedWrapper
-from socnavgym.envs import SocNavEnv_v1
+from socnavgym.envs import SocNavEnv
 from socnavgym.wrappers import WorldFrameObservations
 
 """
 Convert observation in world frame to domains.
 """
 
-def get_state_domain(env: SocNavEnv_v1) -> domains.Set:
+def get_state_domain(env: SocNavEnv) -> domains.Set:
     if env.robot.type in ["holonomic", "diff-drive"]:
         dom = domains.Rectangle(
             vars=["x", "y", "theta"], lb=(-env.MAP_X, -env.MAP_Y, -np.pi), ub=(env.MAP_X, env.MAP_Y, np.pi)
@@ -23,7 +23,7 @@ def get_state_domain(env: SocNavEnv_v1) -> domains.Set:
             vars=["x", "y"], lb=(-env.MAP_X, -env.MAP_Y), ub=(env.MAP_X, env.MAP_Y)
         )
     return dom
-def get_input_domain(env: SocNavEnv_v1) -> domains.Set:
+def get_input_domain(env: SocNavEnv) -> domains.Set:
     max_vx = env.MAX_ADVANCE_ROBOT
     max_vy = env.MAX_ADVANCE_ROBOT
     max_vtheta = env.MAX_ROTATION
@@ -42,7 +42,7 @@ def get_input_domain(env: SocNavEnv_v1) -> domains.Set:
         )
     return domain
 
-def get_init_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.Set:
+def get_init_domain(env: SocNavEnv, use_only_boxes: bool = False) -> domains.Set:
     if not isinstance(env, SeedWrapper):
         raise TypeError("init domain relies on having a seeded environment")
 
@@ -80,7 +80,7 @@ def get_init_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.
 
     return actor_domain
 
-def get_unsafe_domain(env: SocNavEnv_v1, use_only_boxes: bool = False) -> domains.Set:
+def get_unsafe_domain(env: SocNavEnv, use_only_boxes: bool = False) -> domains.Set:
     if not isinstance(env, SeedWrapper):
         raise TypeError("unsafe domain relies on having a seeded environment")
 

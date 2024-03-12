@@ -3,17 +3,16 @@ import random
 import sys
 import time
 from math import atan2
-from typing import List, Dict
+from typing import List, Dict, Optional
 import copy
 from importlib.machinery import SourceFileLoader
 import cv2
-import gym
-import matplotlib.pyplot as plt
+import gymnasium as gym
 import numpy as np
 import rvo2
 import torch
 import yaml
-from gym import spaces
+from gymnasium import spaces
 from shapely.geometry import Point, Polygon
 from collections import namedtuple
 from math import ceil
@@ -33,7 +32,6 @@ from socnavgym.envs.utils.utils import (
     get_coordinates_of_rotated_rectangle,
     get_nearest_point_from_rectangle,
     get_square_around_circle,
-    convert_angle_to_minus_pi_to_pi,
     compute_time_to_collision,
     point_to_segment_dist,
     w2px,
@@ -42,9 +40,6 @@ from socnavgym.envs.utils.utils import (
 from socnavgym.envs.utils.wall import Wall
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/utils/sngnnv2")
-from socnavgym.envs.utils.sngnnv2.socnav import SocNavDataset
-from socnavgym.envs.utils.sngnnv2.socnav_V2_API import Human as otherHuman
-from socnavgym.envs.utils.sngnnv2.socnav_V2_API import Object as otherObject
 from socnavgym.envs.utils.sngnnv2.socnav_V2_API import SNScenario, SocNavAPI
 
 DEBUG = 0
@@ -102,7 +97,7 @@ class SocNavGymObject(Enum):
             return Human_Laptop_Interaction
 
 
-class SocNavEnv_v1(gym.Env):
+class SocNavEnv(gym.Env):
     """
     Class for the environment
     """
@@ -153,7 +148,7 @@ class SocNavEnv_v1(gym.Env):
     # human-laptop interaction params
     HUMAN_LAPTOP_DISTANCE = None
 
-    def __init__(self, config: str = None) -> None:
+    def __init__(self, config: str = None, render_mode: Optional[str] = None) -> None:
         """
         Args :
             config: Path to the environment config file
@@ -280,6 +275,8 @@ class SocNavEnv_v1(gym.Env):
 
         # configuring the environment parameters
         self._configure(config)
+
+        self.render_mode = render_mode
 
     def _configure(self, config_path):
         """
