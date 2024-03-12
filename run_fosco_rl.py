@@ -1,12 +1,10 @@
 from collections import namedtuple
-from functools import partial
 from typing import Callable
 
 import torch
-from fosco.systems.system_env import SystemEnv
 
+import gymnasium as gym
 import socnavgym
-import gym
 
 from examples.example_domains import (
     get_state_domain,
@@ -98,16 +96,12 @@ def main(args):
     exp_name = f"{env_id}_{seed}"
 
     # create environment
-    def make_env(render_mode: str = None):
-        env = gym.make(env_id, config=env_cfg, render_mode=render_mode)
-        env = WorldFrameObservations(env)
-        env = SeedWrapper(env=env, seed=seed)
-        return env
-
-    env = make_env()
     print("seed:", seed)
 
     # abstract environment
+    env = gym.make(env_id, config=env_cfg)
+    env = WorldFrameObservations(env)
+    env = SeedWrapper(env=env, seed=seed)
     abstraction = create_env_abstraction(env=env)
     system = lambda: System(
         id=env_id,
@@ -116,6 +110,17 @@ def main(args):
         dynamics=abstraction.dynamics,
         domains=abstraction.domains,
     )
+
+    # env maker
+    def make_env(render_mode: str = None):
+        env = gym.make(env_id, config=env_cfg, render_mode=render_mode)
+        env = WorldFrameObservations(env)
+        env = SeedWrapper(env=env, seed=seed)
+
+        # workaround: ugly but necessary to make the system accessible to safe-ppo policy
+        env.__setattr__("system", system())
+
+        return env
 
     # create data generator from abstracted system
     data_gen = create_data_generator(system=system())
@@ -143,10 +148,15 @@ def main(args):
     )
     cegis = Cegis(config=config, verbose=verbose)
     result = cegis.solve()
+    hash = cegis.logger._run.hash
+    del cegis
 
     # reinforcement learning with learned cbf
     rl_args = ppo_args
     rl_args.env_id = make_env
+    rl_args.logdir = "./runs-rl"
+    rl_args.trainer_id = "safe-ppo"
+    rl_args.barrier_path = hash
     run(rl_args)
 
 
