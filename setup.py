@@ -31,6 +31,7 @@ REQUIRED = [
     # for fosco
     "aim",
     "pygame",
+    "moviepy",
     # for clean-rl
     "cvxpylayers",
     "tensorboard",
