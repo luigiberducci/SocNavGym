@@ -252,21 +252,41 @@ def obs_to_state(obs: dict[str, np.array], robot_type: str, agent_id: str = "rob
 
 
 def action_to_control(
-    action: np.ndarray, maxvx: float, maxvy: float, maxtheta: float, type: str
+    action: np.ndarray, maxvx: float, maxvy: float, maxtheta: float, robot_type: str
 ) -> np.ndarray:
-    assert isinstance(action, np.ndarray) and action.shape == (3,)
     assert all([-1.0 < a <= 1 for a in action])
-    if type=="holonomic":
+    if robot_type== "holonomic":
+        assert isinstance(action, np.ndarray) and action.shape == (3,)
         u = np.array(
             [action[0] * maxvx, action[1] * maxvy, action[2] * maxtheta],
             dtype=np.float32,
         )
-    elif type=="diff-drive":
+    elif robot_type== "diff-drive":
+        assert isinstance(action, np.ndarray) and action.shape == (3,)
         u = np.array([action[0] * maxvx, action[2] * maxtheta], dtype=np.float32)
-    elif type == "integrator":
+    elif robot_type == "integrator":
+        assert isinstance(action, np.ndarray) and action.shape == (2,)
         u = np.array([action[0] * maxvx, action[1] * maxvy], dtype=np.float32)
     return u
 
+def control_to_action(
+    action: np.ndarray, maxvx: float, maxvy: float, maxtheta: float, robot_type: str
+) -> np.ndarray:
+    if robot_type== "holonomic":
+        assert isinstance(action, np.ndarray) and action.shape == (3,)
+        a = np.array(
+            [action[0] / maxvx, action[1] / maxvy, action[2] / maxtheta],
+            dtype=np.float32,
+        )
+    elif robot_type== "diff-drive":
+        assert isinstance(action, np.ndarray) and action.shape == (3,)
+        a = np.array([action[0] / maxvx, 0.0, action[2] / maxtheta], dtype=np.float32)
+    elif robot_type == "integrator":
+        assert isinstance(action, np.ndarray) and action.shape == (2,)
+        a = np.array([action[0] / maxvx, action[1] / maxvy, 0.0], dtype=np.float32)
+    assert all([-1.0 < a <= 1 for a in action])
+    assert isinstance(a, np.ndarray) and a.shape == (3,)
+    return a
 
 def main():
     cfg = "../environment_configs/exp4_static.yaml"
@@ -303,7 +323,7 @@ def main():
             maxvx=max_vx,
             maxvy=max_vy,
             maxtheta=max_vtheta,
-            type=robot_type,
+            robot_type=robot_type,
         )
         pred_state = dynamics(
             x=state, u=ctrl, dt=dt, type=robot_type

@@ -3604,7 +3604,7 @@ class SocNavEnv(gym.Env):
             or self.MAP_Y / 2 < self.robot.y
             or self.robot.y < -self.MAP_Y / 2
         ):
-            #self._is_terminated = True
+            self._is_terminated = True
             info["OUT_OF_MAP"] = True
 
         elif distance_to_goal < self.GOAL_THRESHOLD:
@@ -4660,8 +4660,8 @@ class SocNavEnv(gym.Env):
         if object_type == SocNavGymObject.ROBOT:
             arg_dict = {
                 "id": 0,  # robot is assigned id 0
-                "x": -HALF_SIZE_X, #random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
-                "y": -HALF_SIZE_Y, #random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "x": -0.6 * HALF_SIZE_X, #random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": -0.6 * HALF_SIZE_Y, #random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
                 "theta": random.uniform(-np.pi, np.pi),
                 "radius": self.ROBOT_RADIUS,
                 "goal_x": None,

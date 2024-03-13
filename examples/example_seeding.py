@@ -17,7 +17,7 @@ class SeedWrapper(gym.Wrapper):
 
 def main():
     cfg = "../environment_configs/exp4_static.yaml"
-    env = gym.make("SocNavGym-v1", config=cfg)
+    env = gym.make("SocNavGym-v1", config=cfg, render_mode="human")
     env = SeedWrapper(env=env, seed=533)
 
     for _ in range(100):

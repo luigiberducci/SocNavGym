@@ -1,9 +1,12 @@
 from collections import namedtuple
 from typing import Callable
 
+import numpy as np
 import torch
 
 import gymnasium as gym
+from gymnasium.spaces import Box
+
 import socnavgym
 
 from examples.example_domains import (
@@ -12,7 +15,8 @@ from examples.example_domains import (
     get_unsafe_domain,
     get_input_domain,
 )
-from examples.example_dynamics import fx_torch, fx_smt, gxdd_torch, gxdd_smt, gxho_torch, gxho_smt, gxint_torch, gxint_smt
+from examples.example_dynamics import fx_torch, fx_smt, gxdd_torch, gxdd_smt, gxho_torch, gxho_smt, gxint_torch, \
+    gxint_smt, obs_to_state, action_to_control, control_to_action
 from examples.example_seeding import SeedWrapper
 from socnavgym.envs import SocNavEnv
 from socnavgym.wrappers import WorldFrameObservations
@@ -26,11 +30,13 @@ from fosco.cegis import Cegis
 from rl_trainer.run_ppo import Args as ppo_args
 from rl_trainer.run_ppo import run
 
+from socnavgym.wrappers.action_wrapper import ActionProcessingWrapper
+from socnavgym.wrappers.observation_wrapper import ObservationPreprocessingWrapper
+
 Abstraction = namedtuple("Abstraction", "variables controls dynamics domains")
 
 
 def create_env_abstraction(env: SocNavEnv) -> Abstraction:
-
     if env.robot.type == "holonomic":
         variables = ["x", "y", "theta"]
         controls = ["vx", "vy", "vtheta"]
@@ -80,10 +86,10 @@ def main(args):
     env_cfg = "environment_configs/exp4_static.yaml"
     seed = 29397
 
-    activations = ("sigmoid", "linear")
-    n_hidden_neurons = (5, 5)
-    n_data_samples = 2000
-    max_cegis_iters = 50
+    activations = ("tanh", "tanh")
+    n_hidden_neurons = (10, 10)
+    n_data_samples = 5000
+    max_cegis_iters = 100
     n_cegis_epochs = 100
     verifier_n_cex = 100
     verifier_timeout_s = 60
@@ -111,11 +117,42 @@ def main(args):
         domains=abstraction.domains,
     )
 
-    # env maker
+    # env maker for rl
     def make_env(render_mode: str = None):
         env = gym.make(env_id, config=env_cfg, render_mode=render_mode)
         env = WorldFrameObservations(env)
         env = SeedWrapper(env=env, seed=seed)
+
+        state_dim = 2 if env.robot.type == "integrator" else 3
+        env = ObservationPreprocessingWrapper(
+            env=env,
+            obs_space=Box(
+                low=-10.0,
+                high=10.0,
+                shape=(state_dim,)
+            ),
+            preprocess_fn=lambda obs: obs_to_state(obs=obs, robot_type=env.robot.type, agent_id="robot")
+        )
+
+        max_vx = env.MAX_ADVANCE_ROBOT
+        max_vy = env.MAX_ADVANCE_ROBOT
+        max_vtheta = env.MAX_ROTATION
+        act_spaces = {
+            "holonomic": Box(low=np.array([-max_vx, -max_vy, -max_vtheta]), high=np.array([max_vx, max_vy, max_vtheta]), shape=(3,)),
+            "diff-drive": Box(low=np.array([-max_vx, -max_vtheta]), high=np.array([max_vx, max_vtheta]), shape=(2,)),
+            "integrator": Box(low=np.array([-max_vx, -max_vy]), high=np.array([-max_vx, -max_vy]), shape=(2,))
+        }
+        env = ActionProcessingWrapper(
+            env=env,
+            action_space=act_spaces[env.robot.type],
+            process_fn=lambda action: control_to_action(
+                action=action,
+                maxvx=max_vx,
+                maxvy=max_vy,
+                maxtheta=max_vtheta,
+                robot_type=env.robot.type,
+            ),
+        )
 
         # workaround: ugly but necessary to make the system accessible to safe-ppo policy
         env.__setattr__("system", system())
@@ -154,11 +191,12 @@ def main(args):
     # reinforcement learning with learned cbf
     rl_args = ppo_args
     rl_args.env_id = make_env
+    rl_args.capture_video = False
+    rl_args.render_mode = "human"
     rl_args.logdir = "./runs-rl"
     rl_args.trainer_id = "safe-ppo"
     rl_args.barrier_path = hash
     run(rl_args)
-
 
     print(system().id)
     print(result)

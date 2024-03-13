@@ -14,19 +14,22 @@ Convert observation in world frame to domains.
 """
 
 def get_state_domain(env: SocNavEnv) -> domains.Set:
+    max_x = env.unwrapped.MAP_X / 2 - env.unwrapped.WALL_THICKNESS / 2
+    max_y = env.unwrapped.MAP_Y / 2 - env.unwrapped.WALL_THICKNESS / 2
+
     if env.robot.type in ["holonomic", "diff-drive"]:
         dom = domains.Rectangle(
-            vars=["x", "y", "theta"], lb=(-env.MAP_X, -env.MAP_Y, -np.pi), ub=(env.MAP_X, env.MAP_Y, np.pi)
+            vars=["x", "y", "theta"], lb=(-max_x, -max_y, -np.pi), ub=(max_x, max_y, np.pi)
         )
     else:
         dom = domains.Rectangle(
-            vars=["x", "y"], lb=(-env.MAP_X, -env.MAP_Y), ub=(env.MAP_X, env.MAP_Y)
+            vars=["x", "y"], lb=(-max_x, -max_y), ub=(max_x, max_y)
         )
     return dom
 def get_input_domain(env: SocNavEnv) -> domains.Set:
-    max_vx = env.MAX_ADVANCE_ROBOT
-    max_vy = env.MAX_ADVANCE_ROBOT
-    max_vtheta = env.MAX_ROTATION
+    max_vx = env.unwrapped.MAX_ADVANCE_ROBOT
+    max_vy = env.unwrapped.MAX_ADVANCE_ROBOT
+    max_vtheta = env.unwrapped.MAX_ROTATION
 
     if env.robot.type == "holonomic":
         domain = domains.Rectangle(
@@ -88,7 +91,7 @@ def get_unsafe_domain(env: SocNavEnv, use_only_boxes: bool = False) -> domains.S
 
     unsafe_domains = {}
     for actor_group in obs:
-        if actor_group in ["robot", "walls"]:
+        if actor_group in ["robot"]:
             continue
 
         n_feats = 14
