@@ -148,8 +148,8 @@ def get_unsafe_domain(env: SocNavEnv, use_only_boxes: bool = False) -> domains.S
     return domains.Union(sets=list(unsafe_domains.values()))
 def main():
     cfg = "../environment_configs/exp4_static.yaml"  # static.yaml"
-    env = gym.make("SocNavGym-v1", config=cfg)
-    seed = np.random.randint(1e6)
+    env = gym.make("SocNavGym-v1", config=cfg, render_mode="human")
+    seed = 921342# np.random.randint(1e6)
     max_steps = 100
     use_only_boxes = True   # toggle using only boxes in domain abstraction
 
@@ -196,6 +196,7 @@ def main():
         done = term or trunc
         env.render()
         obs = new_obs
+        input()
 
     env.close()
 
